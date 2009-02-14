@@ -1,4 +1,22 @@
-commit 8c1ed4c1e169e91d0b999b8317d95be81f11587c (refs/heads/master)
+commit 47131bef5476252b622ea3e4ec653d140128dc19 (refs/heads/master)
+Author: nadim khemir <nkh@cpan.org>
+Date:   Sat Feb 14 14:02:35 2009 +0100
+
+    CHANGED: can not have -b and -s simulteanously
+
+commit b35dc9e5b9d119ae4f5183fd97eec8c9612256c8
+Author: nadim khemir <nkh@cpan.org>
+Date:   Sat Feb 14 12:37:36 2009 +0100
+
+    CHANGED: moved core code to module
+
+commit 275ba1aefb2ffe42378ae93216bda86e9830ca00
+Author: nadim khemir <nkh@cpan.org>
+Date:   Sat Feb 14 11:24:15 2009 +0100
+
+    CHANGED: refactored script
+
+commit 8c1ed4c1e169e91d0b999b8317d95be81f11587c
 Author: nadim khemir <nkh@cpan.org>
 Date:   Sat Feb 14 01:03:00 2009 +0100
 

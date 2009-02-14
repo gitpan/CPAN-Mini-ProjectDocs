@@ -145,6 +145,14 @@ my $build = $class->new
 		{
 		'Readonly'         => 0,
 		'Sub::Exporter'     => 0,
+		'CPAN::PackageDetails' => 0,
+		'Digest::MD5' => 0,
+		'File::Slurp' => 0,
+		'File::HomeDir' => 0,
+		'Getopt::Long' => 0,
+		'Archive::Tar' => 0,
+		'Pod::ProjectDocs' => 0,
+		'Pod::Parser' => 1.38,
 		},
 		
 	pm_files     => \%all_modules,
