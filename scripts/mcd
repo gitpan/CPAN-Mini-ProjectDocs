@@ -1,0 +1,289 @@
+#!/usr/bin/perl  -w
+
+use strict ;
+use warnings ;
+use Carp ;
+
+=head1 NAME 
+
+mcd - search your CPAN mini, and browse modules documentation
+
+=head1 USAGE
+
+ $> mcd [-option] Module::Name
+
+Search for modules which names containing a specific string
+
+ $> mcd -s string
+
+Generate and display a module's documentation in your browser
+
+ $> mcd -d Module::Name
+
+
+=head1 OPTIONS
+
+	'h|help'      display help
+	's|search'    search for modules
+	'b|browse'    generate and browse module ocumentation
+	'browser'     path to your browser
+	'cpan_mini'   cpan mini location
+
+=head1 EXIT STATUS
+
+0 if no error found.
+
+=head1 AUTHOR
+
+	Nadim ibn hamouda el Khemir
+	CPAN ID: NKH
+	mailto: nkh@cpan.org
+
+=cut
+
+#------------------------------------------------------------------------------------------------------------------------
+
+our $VERSION = '0.01' ;
+
+#------------------------------------------------------------------------------------------------------------------------
+
+use strict ;
+use warnings ;
+use Carp ;
+use English ;
+
+use CPAN::PackageDetails ;
+use Digest::MD5;
+use File::Slurp ;
+use File::HomeDir ;
+
+#---------------------------------------------------------------------------------------------------------
+
+use Data::Dumper ;
+$Data::Dumper::Purity = 1 ;
+$Data::Dumper::Indent = 0 ;
+
+#---------------------------------------------------------------------------------------------------------
+
+use Getopt::Long ;
+
+my ($search, $browse, $user_defined_browser, $mini_cpan_location) ;
+unless
+	(
+	GetOptions
+		(
+		'h|help' => \&display_help,
+		's|search' => \$search,
+		'b|browse' => \$browse,
+		'browser=s' => \$user_defined_browser,
+		'cpan_mini=s' => \$mini_cpan_location,
+		)
+	)
+	{
+	croak "Invalid command!\n" ;
+	}
+
+my $package = $ARGV[0] or croak "I need a module name!\n" ;
+
+#---------------------------------------------------------------------------------------------------------
+
+my $browser = $user_defined_browser || $ENV{BROWSER} || 'firefox' ;
+my $base = $mini_cpan_location || '/devel/cpan' ;
+
+croak "Don't know where you CPAN::Mini is!" unless -e $base ;
+
+my $cache = home() . '/.cpan_mini_pod2projdoc' ;
+mkdir $cache ;
+
+my $packages_details_file = "$base/modules/02packages.details.txt.gz" ;
+my $packages_details_txt_md5 = get_file_MD5($packages_details_file) ;
+
+my $packages_details_txt_md5_file = "$cache/packages.details.md5.txt" ;
+my $packages_details_cache_file = "$cache/packages.details.cache" ;
+my $packages_details_cache_all_names = "${packages_details_cache_file}_all_names.txt" ;
+
+my $regenerate_cache = 0 ;
+if(-e $packages_details_txt_md5_file)
+	{
+	my  $cache_md5 = read_file($packages_details_txt_md5_file) ;
+	
+	$regenerate_cache++ if $cache_md5 ne $packages_details_txt_md5 ;
+	}
+else
+	{
+	$regenerate_cache++ ;
+	}
+	
+my $package_details  ;
+my @modules  ;
+
+if($regenerate_cache)
+	{
+	print "Generating cache.\n" ;
+	
+	$package_details = CPAN::PackageDetails->read( $packages_details_file );
+	
+	my $count = $package_details->count;
+	print "$count records found\n" ;
+
+	my $entries_lookup = {} ;
+		
+	my $entries  = $package_details->{entries};
+	my $records  = $entries->{entries};
+	for my $record ( @{$records})
+		{
+		push @modules, $record->{'package name'} ;
+		
+		my $first_letter = substr($record->{'package name'}, 0, 1) ;
+		push @{$entries_lookup->{$first_letter}}, $record ;
+		}
+	
+	for(keys %{$entries_lookup})
+		{
+		$package_details->{entries}{entries} = $entries_lookup->{$_} ;
+		
+		write_file "${packages_details_cache_file}_$_.txt", Dumper($package_details) ;
+		}
+	
+	write_file $packages_details_cache_all_names, Dumper(\@modules) ;
+	write_file($packages_details_txt_md5_file, $packages_details_txt_md5) ;
+	}
+	
+my $first_letter = substr($package, 0, 1) ;
+
+my $serialized =  read_file("${packages_details_cache_file}_$first_letter.txt") ;
+$serialized .= "\n\$VAR1;\n\n" ;
+
+{
+our $VAR1 ;
+eval $serialized ;
+$package_details = $VAR1 ;
+}
+
+# find the package
+my $module_path ;
+
+my $entries  = $package_details->{entries};
+my $records  = $entries->{entries};
+for my $record ( @{$records})
+	{
+	if($record->{'package name'} eq $package)
+		{
+		$module_path = "$base/authors/id/$record->{'path'}" ;
+		last ;
+		}
+	}
+
+if(defined $module_path)
+	{
+	print "Found $package in '$module_path'.\n" ;
+	
+	if($browse)
+		{
+		my ($package_directory) = $module_path =~ /([^\/]+)\.tar.gz$/ ;
+		my $html_directory = "$cache/generated_html/$package_directory" ;
+		my $html_directory_md5 = "$html_directory/md5.txt" ;
+		
+		my $regenerate_html = 0 ;
+		
+		#check if the html was already generated
+		if(-e $html_directory)
+			{
+			eval
+				{
+				my  $cache_md5 = read_file($html_directory_md5) ;
+				$regenerate_html++ if $cache_md5 ne $packages_details_txt_md5 ;
+				} ;
+				
+			$regenerate_html++ if  $@ ;
+			}
+		else
+			{
+			$regenerate_html++ ;
+			}
+			
+		if($regenerate_html)
+			{
+			# extract module
+			use Archive::Tar ;
+			
+			my $tar = Archive::Tar->new($module_path) ;
+			$tar->setcwd($cache);
+			$tar->extract() ;
+			
+			use Pod::ProjectDocs;
+			
+			mkdir "$cache/generated_html/" ;
+			mkdir $html_directory ;
+			
+			Pod::ProjectDocs->new
+				(
+				outroot => $html_directory,
+				libroot => -e "$cache/$package_directory/lib" ? "$cache/$package_directory/lib" : "$cache/$package_directory",
+				title   => $package,
+				)->gen() ;
+			
+			write_file($html_directory_md5, $packages_details_txt_md5) ;
+			}
+			
+		my $location = "$cache/generated_html/$package_directory/index.html" ;
+		system($browser, $location) == 0 or die "can't start browser!" ;
+	}
+	}
+else
+	{
+	print "'$package' not found!" ;
+	print " Try the -s option." unless $search ;
+	print "\n" ;
+	}
+	
+search($package, $packages_details_cache_all_names) if($search) ;
+
+#---------------------------------------------------------------------------------------------------------
+
+sub search
+{
+my ($package, $packages_details_cache_all_names) = @_ ;
+
+my $serialized = read_file $packages_details_cache_all_names ;
+
+our $VAR1 ;
+eval $serialized ;
+my $modules = $VAR1 ;
+
+print "Also found:\n" ;
+for (@{$modules})
+	{
+	print "\t$_\n" if(/$package/i) ;
+	}
+
+#~ use Text::Soundex ;
+#~ my $soundex =  soundex($package) ;
+
+#~ for(@{$package_details->{entries}{entries}})
+	#~ {
+	#~ my $possible_package_soundex =  soundex($_->{'package name'}) ;
+	
+	#~ print "\t$_->{'package name'}\n" if $soundex eq $possible_package_soundex ;
+	#~ }
+}
+	
+#---------------------------------------------------------------------------------------------------------
+
+sub get_file_MD5
+{
+my ($file) = @_ ;
+open(FILE, $file) or die "Can't open '$file': $!";
+binmode(FILE);
+return Digest::MD5->new->addfile(*FILE)->hexdigest ;
+}
+
+#---------------------------------------------------------------------------------------------------------
+
+sub display_help
+{
+my ($this_script) = ($PROGRAM_NAME =~m/(.*)/sxm ) ;
+
+print {*STDERR} `perldoc $this_script`  or croak 'Error: Can\'t display help!' ; ## no critic (InputOutput::ProhibitBacktickOperators)
+exit(1) ;
+}

@@ -1,0 +1,11 @@
+commit 8c1ed4c1e169e91d0b999b8317d95be81f11587c (refs/heads/master)
+Author: nadim khemir <nkh@cpan.org>
+Date:   Sat Feb 14 01:03:00 2009 +0100
+
+    ADDED: --browser option
+
+commit 7623955ecdba833a082ebbde962f4b13ca699fe2
+Author: nadim khemir <nkh@cpan.org>
+Date:   Sat Feb 14 00:43:03 2009 +0100
+
+    ADDED: Initial commit
