@@ -1,9 +1,9 @@
 ---
 name: CPAN-Mini-ProjectDocs
-version: 0.02.5
+version: 0.03.9
 author:
   - 'Nadim ibn hamouda el Khemir. <nkh@cpan.org>'
-abstract: generates nice module documentation from you CPAN mini
+abstract: mini CPAN documentation browser
 license: perl
 resources:
   license: http://dev.perl.org/licenses/
@@ -14,7 +14,7 @@ requires:
   File::HomeDir: 0
   File::Slurp: 0
   Getopt::Long: 0
-  Pod::Parser: 1.38
+  Pod::Parser: 1.35
   Pod::ProjectDocs: 0
   Readonly: 0
   Sub::Exporter: 0
@@ -27,7 +27,7 @@ build_requires:
 provides:
   CPAN::Mini::ProjectDocs:
     file: lib/CPAN/Mini/ProjectDocs.pm
-    version: 0.02
+    version: 0.03
 generated_by: Module::Build version 0.2808
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html

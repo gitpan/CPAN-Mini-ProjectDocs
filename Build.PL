@@ -152,7 +152,7 @@ my $build = $class->new
 		'Getopt::Long' => 0,
 		'Archive::Tar' => 0,
 		'Pod::ProjectDocs' => 0,
-		'Pod::Parser' => 1.38,
+		'Pod::Parser' => 1.35,
 		},
 		
 	pm_files     => \%all_modules,
@@ -160,7 +160,7 @@ my $build = $class->new
 	
 	script_files => 'scripts/mcd',
 	dist_author  => 'Nadim ibn hamouda el Khemir. <nkh@cpan.org>',
-	dist_abstract => 'generates nice module documentation from you CPAN mini',
+	dist_abstract => 'mini CPAN documentation browser',
 	);
 	
 $build->create_build_script;

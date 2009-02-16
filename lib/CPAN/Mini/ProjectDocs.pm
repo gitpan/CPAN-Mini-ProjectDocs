@@ -17,7 +17,7 @@ use Sub::Exporter -setup =>
 	};
 	
 use vars qw ($VERSION);
-$VERSION     = '0.02';
+$VERSION     = '0.03';
 }
 
 #-------------------------------------------------------------------------------
@@ -38,7 +38,7 @@ use Pod::ProjectDocs;
 
 =head1 NAME
 
-CPAN::Mini::ProjectDocs - Generates nice module documentation from you CPAN mini
+CPAN::Mini::ProjectDocs - mini CPAN documentation browser
 
 =head1 SYNOPSIS
 
@@ -46,8 +46,8 @@ see the B<mcd> command for a full example.
 
 =head1 DESCRIPTION
 
-This module and associated script B<mcd> let you display a nice looking documentation for the modules in you CPAN mini.
-The script also allows you to search for modules in you Cpan Mini.
+This module and associated script B<mcd> let you search and display documentation for the modules in you CPAN mini.
+The documentation is displayed in your browser (text mode browsers supported)
 
 =head1 DOCUMENTATION
 
@@ -103,7 +103,7 @@ return
 sub generate_html
 {
 
-=head2 generate_html($cpan_mini, $mcd_cache, $distribution)
+=head2 generate_html($cpan_mini, $mcd_cache, $distribution, $html_index)
 
 Generates the HTML documentation for $distribution. The generation is performed only if the
 documentation does not exist in the cache.
@@ -118,6 +118,8 @@ I<Arguments>
 
 =item $distribution - Location of the distribution containing the module to display
 
+=item $html_index - Boolean - generate a pure HTML index for text based browser
+
 =back
 
 I<Returns> - $html_documentation_location
@@ -126,7 +128,7 @@ I<Exceptions> - problems with the distribution extraction, write errors on the f
 
 =cut
 
-my ($cpan_mini, $mcd_cache, $distribution) = @_ ;
+my ($cpan_mini, $mcd_cache, $distribution, $html_index) = @_ ;
 
 my ($module_directory) = $distribution =~ /([^\/]+)\.tar.gz$/ ;
 my $html_directory = "$mcd_cache/generated_html/$module_directory" ;
@@ -166,14 +168,142 @@ if($regenerate_html)
 		(
 		outroot => $html_directory,
 		libroot => -e "$mcd_cache/$module_directory/lib" ? "$mcd_cache/$module_directory/lib" : "$mcd_cache/$module_directory",
-		title   => 'mcd generated documentation',
+		title   => $distribution,
 		)->gen() ;
 	
 	write_file($html_directory_md5, $modules_details_txt_md5) ;
 	}
 	
 my $html_documentation_location = "$mcd_cache/generated_html/$module_directory/index.html" ;
+
+if($html_index)
+	{
+	$html_documentation_location = generate_pure_html_index("$mcd_cache/generated_html/$module_directory/", 'index.html') ;
+	}
+
 return $html_documentation_location;
+}
+
+#---------------------------------------------------------------------------------------------------------
+
+sub generate_pure_html_index
+{
+
+=head2 generate_pure_html_index($path, $file)
+
+Generate a pure HTML index for text based browsers.
+
+I<Arguments>
+
+=over 2 
+
+=item $path - path to the POD::ProjDocs generated index file
+
+=item $file - POD::ProjDocs generated  index file
+
+=back
+
+I<Returns> - The location of the pure HTML index
+
+I<Exceptions> - None
+
+=cut
+
+my ($path, $file) = @_ ;
+
+my $index = read_file("$path/$file") ;
+
+# convert JS data structure to Perl data structure
+my ($data) = $index =~ m/var managers = (.*?)function render\(pattern\)/sm ;
+
+my $perl_data_structure = '' ;
+my $in_string = 0 ;
+
+for my $character (split //, $data)
+	{
+	if($in_string)
+		{
+		$perl_data_structure .= $character ;
+		$in_string = 0 if $character eq q{"} ;
+		}
+	else
+		{
+		$in_string = 1 if $character eq q{"} ;
+		
+		if($character eq q{:})
+			{
+			$perl_data_structure .= q{=>} ;
+			}
+		else
+			{
+			$perl_data_structure .= $character ;
+			}
+		}
+	}
+	
+$data = eval  $perl_data_structure ;
+
+my $html = '' ;
+
+for my $section (@{$data})
+	{
+	$html .= <<EOH ;
+<div class="box">
+<h2 class="t2">$section->{desc}</h2>
+	<table width='100%'>
+EOH
+
+	my $row_class = 'r' ;
+
+	for my $module (@{$section->{records}})
+		{
+		$html .= <<EOR ;
+		<tr class=$row_class>
+			<td nowrap='nowrap'>
+				<a href= $module->{path}>
+				&nbsp; $module->{name}
+				</a>
+			</td>
+			<td width='99%'>
+				<small>
+				&nbsp; $module->{title}
+				</small>
+			</td>
+		</tr>
+EOR
+
+		if($row_class eq 'r' )
+			{
+			$row_class = 's'  ;
+			}
+		else
+			{
+			$row_class = 'r'  ;
+			}
+		}
+		
+	$html .= <<EOH ;
+	</table>
+</div>
+EOH
+	}
+	
+# remove all trace of javascript
+$index =~ s{<script type="text/javascript">.*</script>}{}sm ; 
+$index =~ s{\Q<body onload="render('')">}{}sm ;
+
+$index =~ s{(<div class="box">.*?</div>)}{}sm ;
+my $title = '' ;  #$1 ;
+
+$index =~ s{<div class="box">.*?</div>}{}sm ;
+
+$index =~ s{(</head>)}{$1\n$title\n$html}sm ;
+
+my $pure_html_index_location = "$path/pure_html_index.html" ;
+
+write_file $pure_html_index_location, $index ;
+
+return $pure_html_index_location ;
 }
 
 #---------------------------------------------------------------------------------------------------------
@@ -472,6 +602,6 @@ L<http://search.cpan.org/dist/CPAN-Mini-ProjectDocs>
 
 =head1 SEE ALSO
 
-L<CPAN::Mini::Webserver>
+L<CPAN::Mini::Webserver>, elinks
 
 =cut

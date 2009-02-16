@@ -6,7 +6,7 @@ use Carp ;
 
 =head1 NAME 
 
-mcd - Browse your CPAN mini modules documentation
+mcd - mini CPAN documentation browser
 
 =head1 DOCUMENTATION
 
@@ -25,6 +25,10 @@ useful if you don't have an internet connection available or you have a very slo
 
  $> mcd -d Module::Name
 
+=item Generate and display a module's documentation in lynx
+
+ $> mcd -d Module::Name -html_index -browser lynx
+
 =item Search for modules which names containing a specific string:
 
  $> mcd -s string
@@ -40,7 +44,8 @@ useful if you don't have an internet connection available or you have a very slo
   'h|help'      display help
   's|search'    search for modules
   'b|browse'    generate and browse module ocumentation
-  'browser'     path to your browser or $ENV{BROWSER} or 'firefox'
+  'html_index'  generate a pure HTML index for text based browsers
+  'browser'     path to your browser or $ENV{BROWSER} or 'firefox'|'elinks'
   'cpan_mini'   cpan mini location or $ENV{CPAN_MINI} or '/devel/cpan'
 
 =head1 EXIT STATUS
@@ -61,7 +66,7 @@ core modules documentation with B<perldoc>.
 
 =head1 SEE ALSO
 
-L<CPAN::Mini::Webserver>
+L<CPAN::Mini::Webserver>, elinks
 
 =cut
 
@@ -109,7 +114,7 @@ my (@arguments) = @_ ;
 
 #----------------------------------
 
-my ($module, $search, $browse, $user_defined_browser, $cpan_mini_user_location)  = get_options(@arguments) ;
+my ($module, $search, $browse,$html_index, $user_defined_browser, $cpan_mini_user_location)  = get_options(@arguments) ;
 
 die "Error: You can only specify one of 'search' or 'browse'!\n" if $search && $browse ;
 
@@ -137,9 +142,9 @@ else
 		
 		if($browse)
 			{
-			my $html_documentation_location = generate_html($cpan_mini, $mcd_cache, $module_distribution) ;
+			my $html_documentation_location = generate_html($cpan_mini, $mcd_cache, $module_distribution, $html_index) ;
 			
-			my $browser = $user_defined_browser || $ENV{BROWSER} || 'firefox' ;
+			my $browser = $user_defined_browser || $ENV{BROWSER} || ($html_index ? 'elinks' : 'firefox') ;
 			system($browser, $html_documentation_location) == 0 or die "can't start browser!" ;
 			}
 		}
@@ -176,7 +181,7 @@ sub get_options
 my (@arguments) = @_ ;
 local @ARGV = @arguments ;
 
-my ($search, $browse, $user_defined_browser, $cpan_mini_user_location) ;
+my ($search, $browse, $html_index, $user_defined_browser, $cpan_mini_user_location) ;
 
 unless
 	(
@@ -186,6 +191,7 @@ unless
 		's|search' => \$search,
 		'b|browse' => \$browse,
 		'browser=s' => \$user_defined_browser,
+		'html_index' => \$html_index,
 		'cpan_mini=s' => \$cpan_mini_user_location,
 		)
 	)
@@ -195,7 +201,7 @@ unless
 
 my $module = $ARGV[0] or die "Error: I need a module name on the command line! Try --help.\n" ;
 
-return ($module, $search, $browse, $user_defined_browser, $cpan_mini_user_location) ;
+return ($module, $search, $browse, $html_index, $user_defined_browser, $cpan_mini_user_location) ;
 }
 
 #---------------------------------------------------------------------------------------------------------
